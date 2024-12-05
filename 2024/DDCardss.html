@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DDCards</title>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #eaeaea;
+            color: #333;
+            text-align: center;
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            color: #444;
+            margin-bottom: 20px;
+        }
+
+        .karta {
+            position: relative;
+            margin: 10px;
+            padding: 10px;
+            border: 2px solid #333;
+            display: inline-block;
+            width: 150px;
+            height: 200px;
+            background-color: #fff;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            transition: background-color 0.3s, border-color 0.3s, transform 0.3s, visibility 0.3s;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.7s forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }       
+
+        .karta:hover {
+            transform: scale(1.05);
+        }
+
+        .wartosc-karty {
+            position: absolute;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .lewy-gorny {
+            top: 5px;
+            left: 5px;
+        }
+
+        .prawy-dolny {
+            bottom: 5px;
+            right: 5px;
+        }
+
+        .sztuka-ascii {
+            margin-top: 30px;
+            font-size: 14px;
+            white-space: pre;
+            color: #555;
+        }
+
+        .statystyki {
+            margin-top: 20px;
+            font-size: 1.2em;
+        }
+
+        .kontener-przyciskow {
+            margin-top: 20px;
+        }
+
+        .kontener-przyciskow button {
+            background-color: #007bff;
+            color: #fff;
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s;
+        }
+
+        .kontener-przyciskow button:hover {
+            background-color: #0056b3;
+        }
+
+        #przycisk-zagraj-ponownie {
+            display: none;
+        }
+
+        #przełącznik-motywu {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+
+        .ciemny-motyw {
+            background-color: #222;
+            color: #f4f4f4;
+        }
+
+        .ciemny-motyw .karta {
+            background-color: #333;
+            border-color: #f4f4f4;
+        }
+
+        .ciemny-motyw .wartosc-karty {
+            color: #f4f4f4;
+        }
+
+        .ciemny-motyw .sztuka-ascii {
+            color: #ccc;
+        }
+
+        #karty-gracza, #karty-komputera {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 10px 0;
+        }
+
+        #wiadomosc {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+        }
+
+        #dice-container {
+            display: none; 
+        }
+
+        .dice {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 2px solid #333;
+            border-radius: 5px;
+            margin: 10px;
+            font-size: 24px;
+            line-height: 50px; 
+            text-align: center;
+        }
+
+        .dice-1 { background: white; }
+        .dice-2 { background: white; }
+        .dice-3 { background: white; }
+        .dice-4 { background: white; }
+        .dice-5 { background: white; }
+        .dice-6 { background: white; }
+    </style>
+</head>
+<body>
+    <h1>DDCards</h1>
+
+    <div id="przełącznik-motywu">
+        <button id="przycisk-ciemny-motyw">Ciemny motyw</button>
+        <button id="przycisk-jasny-motyw" style="display:none;">Jasny motyw</button>
+    </div>
+
+    <div id="menu">
+        <button id="przycisk-graj-karty">Gra w Karty</button>
+        <button id="przycisk-graj-kosci">Gra w Kości</button>
+    </div>
+
+    <div id="gra" style="display: none;">
+        <p id="wiadomosc"></p>
+        <div id="karty-gracza"></div>
+        <p id="wynik-gracza"></p>
+        <div class="kontener-przyciskow">
+            <button id="przycisk-dobierz">Dobierz kartę</button>
+            <button id="przycisk-zakoncz">Zakończ turę</button>
+            <button id="przycisk-zagraj-ponownie">Zagraj ponownie</button>
+        </div>
+        <div id="karty-komputera"></div>
+        <p id="wynik-komputera"></p>
+        <div class="statystyki">
+            <p>Twoje wygrane: <span id="wygrane-gracza">0</span></p>
+            <p>Wygrane komputera: <span id="wygrane-komputera">0</span></p>
+            <p>Remisy: <span id="remisy">0</span></p>
+        </div>
+    </div>
+
+    <div id="dice-container">
+        <h2>Gra w Kości</h2>
+        <div id="dice">
+            <div class="dice" id="dice1"></div>
+            <div class="dice" id="dice2"></div>
+        </div>
+        <button id="przycisk-rzuc-kosci">Rzuć kośćmi</button>
+        <p id="wiadomosc-kosci"></p>
+        <p id="wynik-gracza-kosci"></p>
+        <p id="wynik-komputera-kosci"></p>
+        <div class="kontener-przyciskow">
+            <button id="przycisk-zagraj-ponownie-kosci">Zagraj ponownie</button>
+        </div>
+    </div>
+
+    <script>
+        
+        class Karta {
+            constructor(nazwa, wartosc, sztukaAscii) {
+                this.nazwa = nazwa;
+                this.wartosc = wartosc;
+                this.sztukaAscii = sztukaAscii;
+            }
+
+            renderuj() {
+                return `
+                    <div class="karta fade-in">
+                        <div class="wartosc-karty lewy-gorny">${this.wartosc}</div>
+                        <pre class="sztuka-ascii">${this.sztukaAscii}</pre>
+                        <div class="wartosc-karty prawy-dolny">${this.wartosc}</div>
+                    </div>
+                `;
+            }
+        }
+
+        class Gracz {
+            constructor() {
+                this.reka = [];
+                this.wynik = 0;
+                this.liczbaAsow = 0;
+            }
+
+            dodajKarte(karta) {
+                this.reka.push(karta);
+                this.wynik += karta.wartosc;
+                if (karta.wartosc === 11) {
+                    this.liczbaAsow++;
+                }
+                this.dostosujDlaAsow();
+            }
+
+            dostosujDlaAsow() {
+                while (this.wynik > 21 && this.liczbaAsow > 0) {
+                    this.wynik -= 10;
+                    this.liczbaAsow--;
+                }
+            }
+
+            resetuj() {
+                this.reka = [];
+                this.wynik = 0;
+                this.liczbaAsow = 0;
+            }
+
+            renderujKarty() {
+                return this.reka.map(karta => karta.renderuj()).join('');
+            }
+        }
+
+        const gracz = new Gracz();
+        const komputer = new Gracz();
+        let wygraneGracza = 0;
+        let wygraneKomputera = 0;
+        let remisy = 0;
+
+        const nazwy = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "Walet", "Dama", "Król", "As"];
+        const wartosci = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 11];
+        const sztukiAscii = [
+            "O\n/|\\\n/ \\", 
+            "(o o)\n/ - \\\n/| |", 
+            "*\n* O *\n* \\|/*\n* | |\n/ \\", 
+            "|O\n+|()\n/ \\", 
+            "( )\n|\\^^/|\n(@::@)\n\\\\//\n(oo)\n/ \"\" \\", 
+            "0.O\n/|\\\n/ \\", 
+            "[~]\n/|\\\n/ \\", 
+            ",~.\n(o o)\n()_()", 
+            "/-\\\n|= O =|\n\\~/", 
+            "___\n/   \\\n| O O |\n| \\_/ |\n\\___/", 
+            ",___,\n( o_o )\n| | |\n| | |", 
+            "(\\ /)\n( o o )\n\\ - /", 
+            "(O O)\n/   \\\n|     |\n|     |"
+        ];
+
+        function dobierzKarte() {
+            const index = Math.floor(Math.random() * nazwy.length);
+            return new Karta(nazwy[index], wartosci[index], sztukiAscii[index]);
+        }
+
+        function aktualizujWidok() {
+            const kartyGracza = document.getElementById('karty-gracza');
+            kartyGracza.innerHTML = gracz.renderujKarty();
+
+            kartyGracza.querySelectorAll('.karta').forEach(karta => {
+                karta.classList.remove('fade-in');
+                void karta.offsetWidth; 
+                karta.classList.add('fade-in');
+            });
+
+            document.getElementById('wynik-gracza').innerText = `Twój wynik: ${gracz.wynik}`;
+
+            const kartyKomputera = document.getElementById('karty-komputera');
+            kartyKomputera.innerHTML = komputer.renderujKarty();
+
+            kartyKomputera.querySelectorAll('.karta').forEach(karta => {
+                karta.classList.remove('fade-in');
+                void karta.offsetWidth; 
+                karta.classList.add('fade-in');
+            });
+
+            document.getElementById('wynik-komputera').innerText = `Wynik komputera: ${komputer.wynik}`;
+        }
+
+        function ruchKomputera() {
+            while (komputer.wynik < 17) {
+                const karta = dobierzKarte();
+                komputer.dodajKarte(karta);
+                komputer.dostosujDlaAsow();
+            }
+            aktualizujWidok();
+        }
+
+        function porownajWyniki() {
+            if (gracz.wynik > 21) {
+                document.getElementById('wiadomosc').innerText = "Przekroczyłeś 21 punktów! Przegrana.";
+                wygraneKomputera++;
+            } else if (komputer.wynik > 21) {
+                document.getElementById('wiadomosc').innerText = "Komputer przekroczył 21 punktów! Wygrana!";
+                wygraneGracza++;
+            } else if (gracz.wynik > komputer.wynik) {
+                document.getElementById('wiadomosc').innerText = `Wygrana! Twój wynik to ${gracz.wynik}, komputer miał ${komputer.wynik}.`;
+                wygraneGracza++;
+            } else if (gracz.wynik < komputer.wynik) {
+                document.getElementById('wiadomosc').innerText = `Przegrana. Komputer miał ${komputer.wynik}, a Ty ${gracz.wynik}.`;
+                wygraneKomputera++;
+            } else {
+                document.getElementById('wiadomosc').innerText = "Remis!";
+                remisy++;
+            }
+
+            document.getElementById('wygrane-gracza').innerText = wygraneGracza;
+            document.getElementById('wygrane-komputera').innerText = wygraneKomputera;
+            document.getElementById('remisy').innerText = remisy;
+        }
+
+        document.getElementById('przycisk-dobierz').addEventListener('click', () => {
+            const karta = dobierzKarte();
+            gracz.dodajKarte(karta);
+            aktualizujWidok();
+
+            if (gracz.wynik >= 21) {
+                document.getElementById('przycisk-dobierz').disabled = true;
+                document.getElementById('przycisk-zakoncz').disabled = true;
+                porownajWyniki();
+                document.getElementById('przycisk-zagraj-ponownie').style.display = 'inline-block';
+            }
+        });
+
+        document.getElementById('przycisk-zakoncz').addEventListener('click', () => {
+            ruchKomputera();
+            porownajWyniki();
+            document.getElementById('przycisk-dobierz').disabled = true;
+            document.getElementById('przycisk-zakoncz').disabled = true;
+            document.getElementById('przycisk-zagraj-ponownie').style.display = 'inline-block';
+        });
+
+        document.getElementById('przycisk-zagraj-ponownie').addEventListener('click', () => {
+            gracz.resetuj();
+            komputer.resetuj();
+            document.getElementById('przycisk-dobierz').disabled = false;
+            document.getElementById('przycisk-zakoncz').disabled = false;
+            document.getElementById('przycisk-zagraj-ponownie').style.display = 'none';
+            document.getElementById('wiadomosc').innerText = '';
+            aktualizujWidok();
+        });
+
+        function przełączNaCiemnyMotyw() {
+            document.body.classList.add('ciemny-motyw');
+            document.getElementById('przycisk-ciemny-motyw').style.display = 'none';
+            document.getElementById('przycisk-jasny-motyw').style.display = 'inline-block';
+        }
+
+        function przełączNaJasnyMotyw() {
+            document.body.classList.remove('ciemny-motyw');
+            document.getElementById('przycisk-ciemny-motyw').style.display = 'inline-block';
+            document.getElementById('przycisk-jasny-motyw').style.display = 'none';
+        }
+
+        document.getElementById('przycisk-ciemny-motyw').addEventListener('click', przełączNaCiemnyMotyw);
+        document.getElementById('przycisk-jasny-motyw').addEventListener('click', przełączNaJasnyMotyw);
+
+        
+        function rzucKosci() {
+            const graczWynik = Math.floor(Math.random() * 6) + 1;
+            const komputerWynik = Math.floor(Math.random() * 6) + 1;
+
+            
+            document.getElementById('dice1').innerText = graczWynik;
+            document.getElementById('dice2').innerText = komputerWynik;
+
+            
+            document.getElementById('dice1').className = `dice dice-${graczWynik}`;
+            document.getElementById('dice2').className = `dice dice-${komputerWynik}`;
+
+            document.getElementById('wynik-gracza-kosci').innerText = `Twój wynik: ${graczWynik}`;
+            document.getElementById('wynik-komputera-kosci').innerText = `Wynik komputera: ${komputerWynik}`;
+
+            if (graczWynik > komputerWynik) {
+                document.getElementById('wiadomosc-kosci').innerText = "Wygrana!";
+            } else if (graczWynik < komputerWynik) {
+                document.getElementById('wiadomosc-kosci').innerText = "Przegrana.";
+            } else {
+                document.getElementById('wiadomosc-kosci').innerText = "Remis!";
+            }
+        }
+
+        document.getElementById('przycisk-graj-karty').addEventListener('click', () => {
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('gra').style.display = 'block';
+            aktualizujWidok();
+        });
+
+        document.getElementById('przycisk-graj-kosci').addEventListener('click', () => {
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('dice-container').style.display = 'block';
+        });
+
+        document.getElementById('przycisk-rzuc-kosci').addEventListener('click', rzucKosci);
+
+        document.getElementById('przycisk-zagraj-ponownie-kosci').addEventListener('click', () => {
+            document.getElementById('wiadomosc-kosci').innerText = '';
+            document.getElementById('wynik-gracza-kosci').innerText = '';
+            document.getElementById('wynik-komputera-kosci').innerText = '';
+            document.getElementById('dice1').innerText = '';
+            document.getElementById('dice2').innerText = '';
+        });
+
+        
+        aktualizujWidok();
+    </script>
+</body>
+</html>
