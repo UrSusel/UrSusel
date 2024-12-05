@@ -1,6 +1,6 @@
-- 👋 Hi, I’m @UrSusel a fox Protogen.
+- 👋 Hi, I’m @UrSusel a very small developer/programer.
 - 👀 I’m interested in programing stuff.
-- 📫 How to reach me: Disocrd: UrSusel#5095
+- 📫 How to reach me: Disocrd: UrSusel
 
 <!---
 UrSusel/UrSusel is a ✨ special ✨ repository because its `README.md` (this file) appears on your GitHub profile.
