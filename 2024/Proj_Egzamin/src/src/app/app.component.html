@@ -1,0 +1,50 @@
+<div>
+  <form #formularz="ngForm">
+    <div>
+    <label for="im">
+      <input type="text" [(ngModel)]="imie" name="a">Nazwisko
+    </label>
+  </div>
+  <div>
+    <label for="a">
+    <select multiple [(ngModel)]="Wybrany1" name="ks">
+      <option *ngFor="let wartosc of ryby">{{wartosc}}</option>
+    </select> 
+    Ryby
+    </label>
+  </div>Psy
+  <label for="psy">
+    <div *ngFor="let wartosc of psy, let i=index">
+      <input type="checkbox" [(ngModel)]="Wybrany2[i]" name="psy" id={{wartosc.id}} value={{wartosc.value}}> {{wartosc.value}}
+    </div>
+  </label>Warzywa
+  <label for="warzywa">
+    <div *ngFor="let wartosc of warzywa">
+      <input type="radio" name="warzyw" [(ngModel)]="Wybrany3" value={{wartosc}}> {{wartosc}}
+    </div>
+  </label>
+  </form>
+  <input type="button" value="Wyswietl" (click)="wyswietl()">
+</div>
+<div *ngIf="wyswietlanie">
+  <div>
+    <p>Nazwisko</p>
+    {{imie}}
+  </div>
+  <div>
+    <p>Lista Ryby</p>
+    <div *ngFor="let select of Wybrany1">
+      <div>{{select}}</div>
+    </div>
+  </div>
+  <div>
+    <p>Checkbox Psy</p>
+      <div *ngFor="let selected of Wybrany2; let i=index">
+        <div *ngIf="selected">{{psy[i].value}}</div>
+      </div>
+    </div>
+  <div>
+  <p>Radio Warzywa</p>
+  {{Wybrany3}}
+</div>
+</div>
