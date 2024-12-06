@@ -1,0 +1,36 @@
+<p>Mam na imię {{imie}} {{nazwisko}}</p>
+<p>Jestem w klasie {{klasa}}</p>
+<p>Oraz mam {{wiek}} lat</p>
+
+
+<p>Mam na imię {{Uczen.imie2}} {{Uczen.nazwisko2}}</p>
+<p>Jestem w klasie {{Uczen.klasa2}}</p>
+<p>Oraz mam {{Uczen.wiek2}} lat</p>
+
+<ul>
+  <li *ngFor="let imien of Imiona">
+    {{imien}}
+  </li>
+  
+</ul>
+<table>
+  <tr><th *ngFor="let imien of Imiona">{{imien}}</th></tr>
+</table>
+<table>
+  <tr *ngFor="let imien of Imiona"><th >{{imien}}</th></tr>
+</table>
+<ul>
+  <span  *ngFor="let dni of Dni, let e=odd">
+    
+  <li *ngIf=e>
+    {{dni}}
+    </li></span>
+  </ul>
+  <ul>
+    <li *ngFor="let imien of Imiona, let en=first,let c=count , let a=last, let in=index">
+      
+   {{in+1}} z {{c}} {{imien}} 
+    <span *ngIf="en"> Jestem pierwszy na liście</span>
+    <span *ngIf="a"> Jestem ostatni na liście</span>
+    </li>
+  </ul>

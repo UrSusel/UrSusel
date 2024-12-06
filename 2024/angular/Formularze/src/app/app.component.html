@@ -1,0 +1,43 @@
+<h1>Zamówienie</h1>
+<form (ngSubmit)="konsole()">
+<div>
+  <label for="imie">
+Imię i nazwisko<input type="text" [(ngModel)]="imie" id="imie" name="imie">
+</label>
+</div>
+<label for="email">
+e-mail<input type="text" [(ngModel)]="email" name="email">
+</label>
+<div>
+Produkt<label for="produkt">
+  <select [(ngModel)]="produkt" name="produkt" id="produkt">
+      <option value="pralka">pralka</option>
+      <option value="telewizor">telewizor</option>
+      <option value="lodówka">lodówka</option>
+      <option value="laptop">laptop</option>
+  </select>
+</label>
+</div>
+<div>
+  <label for="ilosc">
+    Ilość<input type="number" [(ngModel)]="Ilosc" name="Ilosc" id="ilosc">
+  </label>
+</div>
+<div>
+<p>Stan urządzenia </p>
+<label for="stan">
+  <div><input type="radio" id="r1" name="stan" value="Bardzo dobry" [(ngModel)]="stan">Bardzo Dobry</div>
+  <div><input type="radio" id="r1" name="stan" value="Dobry" [(ngModel)]="stan">Dobry</div>
+  <div><input type="radio" id="r1" name="stan" value="Średni" [(ngModel)]="stan">Średni</div>
+  <div><input type="radio" id="r1" name="stan" value="Zły" [(ngModel)]="stan">Zły</div>
+  <div><input type="radio" id="r1" name="stan" value="Bardzo zły" [(ngModel)]="stan">Bardzo zły</div>
+  </label>
+</div>
+<div>
+  Wiadomość<textarea [(ngModel)]="wiadomosc" name="wiadomosc"></textarea>
+</div>
+<div>
+  <input type="submit" value="Wyślij" >
+
+</div>
+</form >

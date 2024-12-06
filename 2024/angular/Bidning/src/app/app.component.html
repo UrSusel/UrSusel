@@ -1,0 +1,10 @@
+<div [style.background-color]="kolor">
+<p style.color="{{colore}}" [style.font-size]="fonte">{{imie}}</p> <img  src="{{zdjecie}}">
+<img  [src]="zdjecie2">
+<p>Nazywam się {{nazwisko}}</p>
+
+<input type="text" [(ngModel)]="nazwisko">Podaj nazwisko<br>
+<input type="text" [(ngModel)]="colore">Podaj kolor
+<input type="text" [(ngModel)]="zdjecie">Podaj zdjecie
+<input type="button" value="Zmień Kolor Tła" (click)="KolorTla()">
+</div>

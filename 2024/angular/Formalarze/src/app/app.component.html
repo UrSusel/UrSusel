@@ -1,0 +1,41 @@
+<form #imiona="ngForm">
+<div *ngFor="let pole of wartosci; let in=index">
+  <label for="A">
+    <input type="checkbox" [(ngModel)]="wybranePole[in]" name="imiona1" id="A">
+    {{pole.wartosc}}
+  </label>
+</div>
+<div>
+<p>Produkty:</p>
+<select [(ngModel)]="wybranePole1" multiple name="produkt1" id="produkt1">
+  <option *ngFor="let pole of prodkukty; let i=index">
+    {{pole.wartosc}}
+  </option>
+
+</select>
+
+
+</div>
+</form>
+<input type="button" value="RESET" (click)="imiona.resetForm()">
+<input type="button" value="Pokaż" (click)="wyswietlanie()">
+<div *ngIf="tak">
+  <h2>Zaznaczone pola</h2>
+  <div *ngFor="let pole of wybranePole; let i=index">
+    <span *ngIf="pole">
+      {{i}}: {{pole}}
+    </span>
+  </div>
+  <h2>Wybrane Wartości</h2>
+  <div *ngFor="let pole of wybranePole; let i=index">
+    <span *ngIf="pole">
+      {{wartosci[i].wartosc}}
+    </span>
+  </div>
+  <h2>Wybrane wartości listy rozwijanej</h2>
+  <div *ngFor="let pole of wybranePole1; let i=index">
+    <span *ngIf="pole">
+      {{pole}}
+    </span>
+  </div>
+</div>

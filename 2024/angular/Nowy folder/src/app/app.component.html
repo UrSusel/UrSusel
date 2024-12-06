@@ -1,0 +1,43 @@
+<div class="container-fluid">
+<h2>Liczba kursów: {{liczba}}</h2>
+<ol>
+  <li *ngFor="let kursy of kurs">
+    {{kursy}}
+  </li>
+</ol>
+<form class="row" #formularz="ngForm" (ngSubmit)="logow()">
+  <div class="col-12">
+    <p>Imię i nazwisko</p>
+    <input class="form-control mt-1 " type="text" name="a" [(ngModel)]="imie">
+  </div>
+  <div class="col-12 mt-2">
+    <p>Numer kursu:</p>
+    <input class="form-control mt-1" type="number" name="b" [(ngModel)]="nrk" >
+  </div>
+  <div class="col-12 mt-2">
+    <input type="submit" class="btn btn-primary mt-1"  value="Zapisz do kursu">
+  </div>
+</form>
+</div>
+<div class="container-fluid"> 
+  <form>
+  <div class="col-12 ">
+    
+    <p>Tytuł Filmu</p>
+    <input type="text" name="a" [(ngModel)]="film" class="form-control mt-1">
+  </div>
+  <div class="col-12">
+    <p>Rodzaj</p>
+    <select class="form-control" name="a" id="v" [(ngModel)]="zmienna">
+      <option *ngFor="let filmy of FilmRodzaje, let i=index" value="{{i}}">
+        {{filmy}}
+      </option>
+    </select>
+  
+  </div>
+  <div>
+    <input type="button" value="Dodaj" class="btn btn-primary mt-1" (click)="Zapisz()">
+  </div>
+</form>
+
+</div>
