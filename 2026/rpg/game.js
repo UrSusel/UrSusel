@@ -17,6 +17,25 @@ let gameState = {
 let inCombatMode = false;
 let combatState = null;
 
+// --- KONFIGURACJA AUDIO ---
+const AUDIO_PATHS = {
+    walk: Array.from({length: 8}, (_, i) => `assets/walking/stepdirt_${i+1}.wav`),
+    hit: ['assets/combat/damage/Hit 1.wav', 'assets/combat/damage/Hit 2.wav'],
+    damage: Array.from({length: 10}, (_, i) => `assets/combat/damage/damage_${i+1}_ian.wav`),
+    combatMusic: "assets/combat/If It's a Fight You Want.ogg"
+};
+
+const playlist = ['assets/Journey Across the Blue.ogg', 'assets/World Travelers.ogg'];
+let explorationAudio = new Audio();
+let combatAudio = new Audio(AUDIO_PATHS.combatMusic);
+combatAudio.loop = true;
+let isPlaying = false;
+explorationAudio.volume = 0.2;
+combatAudio.volume = 0.2;
+
+// Zmienne do obsługi kroków
+let stepInterval = null;
+
 // Grafiki gracza
 const playerSprites = {
     idle: ['assets/player/idle1.png', 'assets/player/idle2.png', 'assets/player/idle3.png','assets/player/idle4.png', 'assets/player/idle5.png', 'assets/player/idle6.png','assets/player/idle7.png', 'assets/player/idle8.png', 'assets/player/idle9.png'],
@@ -28,13 +47,54 @@ let currentFrameIndex = 0;
 let animationInterval;
 let moveTimeout = null;
 const ANIMATION_SPEED = 100;
-const MOVEMENT_SPEED_PX = 150; // Piksele na sekundę - stała prędkość chodzenia
+const MOVEMENT_SPEED_PX = 150; // Piksele na sekundę
 
-// --- MUZYKA ---
-const playlist = ['assets/Journey Across the Blue.ogg', 'assets/World Travelers.ogg'];
-let audio = new Audio();
-let isPlaying = false;
-audio.volume = 0.2;
+// --- SYSTEM AUDIO ---
+
+// Funkcja odtwarzająca losowy dźwięk z kategorii
+function playSoundEffect(category, damageValue = 0) {
+    let src = '';
+    
+    if (category === 'walk') {
+        const randIndex = Math.floor(Math.random() * AUDIO_PATHS.walk.length);
+        src = AUDIO_PATHS.walk[randIndex];
+    } else if (category === 'hit') {
+        const randIndex = Math.floor(Math.random() * AUDIO_PATHS.hit.length);
+        src = AUDIO_PATHS.hit[randIndex];
+    } else if (category === 'damage') {
+        // Logika: 1-2 -> plik 1, 3-4 -> plik 2, itd. Max plik 10.
+        let index = Math.ceil(damageValue / 2);
+        if (index < 1) index = 1;
+        if (index > 10) index = 10;
+        src = AUDIO_PATHS.damage[index - 1];
+    }
+
+    if (src) {
+        const sfx = new Audio(src);
+        sfx.volume = 0.3; // Trochę głośniej niż muzyka
+        sfx.play().catch(() => {});
+    }
+}
+
+// Zarządzanie krokami
+function startWalkingSound() {
+    if (stepInterval) return;
+    // Odtwórz pierwszy krok od razu
+    playSoundEffect('walk');
+    // Kolejne co 400ms (zsynchronizowane mniej więcej z biegiem)
+    stepInterval = setInterval(() => {
+        playSoundEffect('walk');
+    }, 400);
+}
+
+function stopWalkingSound() {
+    if (stepInterval) {
+        clearInterval(stepInterval);
+        stepInterval = null;
+    }
+}
+
+// --- START GRY ---
 
 function startGame() {
     document.getElementById('start-screen').style.display = 'none';
@@ -65,11 +125,10 @@ async function initGame() {
             } else {
                 await loadAndDrawMap();
                 startPlayerAnimation();
-                // Natychmiastowe ustawienie pozycji przy starcie
                 setTimeout(() => { updatePlayerVisuals(gameState.x, gameState.y, true); }, 50);
             }
             updateUI(json.data);
-            renderInventory(json.data.inventory); // Renderowanie ekwipunku
+            renderInventory(json.data.inventory);
             checkLifeStatus();
         }
     } catch(e) { console.error("Init Error:", e); }
@@ -104,13 +163,11 @@ async function loadAndDrawMap() {
     });
 }
 
-// --- POPRAWIONA FUNKCJA RUCHU ---
 function updatePlayerVisuals(x, y, isInstant = false) {
     const targetTile = document.querySelector(`.tile[data-x='${x}'][data-y='${y}']`);
     if (targetTile) {
         const tLeft = targetTile.offsetLeft;
         const tTop = targetTile.offsetTop;
-        // Korekta, aby postać stała na środku pola
         const targetPixelX = tLeft - 5; 
         const targetPixelY = tTop - 12;
 
@@ -120,21 +177,16 @@ function updatePlayerVisuals(x, y, isInstant = false) {
             playerMarker.style.top = targetPixelY + 'px';
             setAnimationState('idle');
         } else {
-            // Obliczamy obecną pozycję
             const currentLeft = parseFloat(playerMarker.style.left || 0);
             const currentTop = parseFloat(playerMarker.style.top || 0);
 
-            // Obliczamy odległość w pikselach (Pitagoras)
             const deltaX = targetPixelX - currentLeft;
             const deltaY = targetPixelY - currentTop;
             const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-            // Czas trwania zależy od stałej prędkości
             const duration = distance / MOVEMENT_SPEED_PX; 
 
             setAnimationState('run');
             
-            // Ustawiamy płynne przejście dla obu osi
             playerMarker.style.transition = `top ${duration}s linear, left ${duration}s linear`;
             playerMarker.style.left = targetPixelX + 'px';
             playerMarker.style.top = targetPixelY + 'px';
@@ -159,8 +211,19 @@ function centerMapOnPlayer(pixelX, pixelY) {
 // --- ANIMACJE ---
 function setAnimationState(newState) {
     if (currentAnimState === newState) return;
-    currentAnimState = newState; currentFrameIndex = 0; updatePlayerSprite();
+    
+    currentAnimState = newState; 
+    currentFrameIndex = 0; 
+    updatePlayerSprite();
+
+    // Obsługa dźwięku kroków przy zmianie stanu
+    if (newState === 'run') {
+        startWalkingSound();
+    } else {
+        stopWalkingSound();
+    }
 }
+
 function startPlayerAnimation() {
     if (animationInterval) clearInterval(animationInterval);
     updatePlayerSprite();
@@ -170,6 +233,7 @@ function startPlayerAnimation() {
         updatePlayerSprite();
     }, ANIMATION_SPEED);
 }
+
 function updatePlayerSprite() {
     const frames = playerSprites[currentAnimState];
     if (frames && frames.length > 0) playerMarker.style.backgroundImage = `url('${frames[currentFrameIndex]}')`;
@@ -195,12 +259,11 @@ async function attemptMove(targetX, targetY) {
         if (result.encounter) {
             setTimeout(() => { 
                 initGame(); 
-            }, 1000); // Małe opóźnienie przed wejściem w walkę, by animacja ruszyła
+            }, 1000); 
         }
     }
 }
 
-// --- EKWIPUNEK ---
 function renderInventory(inventory) {
     const container = document.getElementById('inventory-grid');
     if (!container) return;
@@ -221,16 +284,26 @@ function renderInventory(inventory) {
             <div style="font-size:11px; margin-top:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.name}</div>
             ${item.quantity > 1 ? `<div style="position:absolute; bottom:2px; right:5px; font-size:10px; color:#aaa;">x${item.quantity}</div>` : ''}
         `;
-        // Tutaj można dodać onclick do zakładania/używania przedmiotów
         container.appendChild(slot);
     });
 }
 
 // --- WALKA TAKTYCZNA ---
+
 function toggleCombatMode(active, currentHp, enemyHp = 0) {
     const combatScreen = document.getElementById('combat-screen');
     const mapDiv = document.getElementById('map');
     inCombatMode = active; gameState.in_combat = active;
+
+    // Przełączanie muzyki
+    if (active && isPlaying) {
+        explorationAudio.pause();
+        combatAudio.currentTime = 0;
+        combatAudio.play().catch(e => console.log(e));
+    } else if (!active && isPlaying) {
+        combatAudio.pause();
+        explorationAudio.play().catch(e => console.log(e));
+    }
 
     if (active) {
         mapDiv.style.display = 'none'; 
@@ -325,12 +398,19 @@ function animateCombatMove(type, targetPos) {
     let targetPxX = (targetPos.x * HEX_WIDTH) + off - 5;
     let targetPxY = (targetPos.y * HEX_HEIGHT) - 12;
     
+    // Zmiana na bieg i start dźwięku
     el.style.backgroundImage = `url('assets/player/run1.png')`; 
+    startWalkingSound();
+
     el.style.transition = "all 0.4s linear";
     el.style.left = targetPxX + 'px';
     el.style.top = targetPxY + 'px';
     
-    setTimeout(() => { el.style.backgroundImage = `url('assets/player/idle1.png')`; }, 400);
+    // Stop po zakończeniu ruchu
+    setTimeout(() => { 
+        el.style.backgroundImage = `url('assets/player/idle1.png')`; 
+        stopWalkingSound();
+    }, 400);
 }
 
 async function handleCombatMove(x, y) {
@@ -353,11 +433,15 @@ async function handleCombatDefend() {
 }
 
 async function handleCombatAttack() {
+    // Dźwięk uderzenia gracza
+    playSoundEffect('hit');
+    
     const res = await fetch('api.php', { method: 'POST', body: JSON.stringify({ action: 'combat_attack' }) });
     const json = await res.json();
     if (json.status === 'success') {
         document.getElementById('enemy-hp').innerText = json.enemy_hp;
         document.getElementById('combat-log').innerText = json.log;
+        
         combatState = json.combat_state;
         renderCombatArena();
         if (json.win) { setTimeout(() => { toggleCombatMode(false); alert(json.log); }, 1500); }
@@ -384,6 +468,15 @@ async function handleEnemyTurn() {
                 setTimeout(() => playAction(index + 1), 600);
             } else if (action.type === 'attack') {
                 const pEl = document.getElementById('combat-player');
+                
+                // Dźwięk ataku wroga (uderzenie)
+                playSoundEffect('hit');
+                // Dźwięk obrażeń gracza (zależny od dmg)
+                if (action.dmg > 0) {
+                    // Małe opóźnienie dla lepszego efektu
+                    setTimeout(() => playSoundEffect('damage', action.dmg), 100);
+                }
+
                 if(pEl) pEl.style.filter = "brightness(0.5) sepia(1) hue-rotate(-50deg) saturate(5)"; 
                 setTimeout(() => { if(pEl) pEl.style.filter = ""; }, 200);
                 setTimeout(() => playAction(index + 1), 400);
@@ -418,28 +511,23 @@ function updateLocalState(data) {
     gameState.in_combat = (data.in_combat == 1);
 }
 
-// --- POPRAWIONE UPDATE UI (Paski i Teksty) ---
 function updateUI(data) {
     if(!data) return;
     
-    // HP
     if(data.hp !== undefined) {
         const maxHp = data.max_hp || gameState.max_hp;
         document.getElementById('hp').innerText = `${data.hp} / ${maxHp}`;
         document.getElementById('hp-fill').style.width = (data.hp / maxHp * 100) + '%';
     }
     
-    // Energia
     if(data.energy !== undefined) {
         const maxEn = data.max_energy || gameState.max_energy;
         document.getElementById('energy').innerText = `${data.energy} / ${maxEn}`;
         document.getElementById('en-fill').style.width = (data.energy / maxEn * 100) + '%';
     }
     
-    // Kroki
     if(data.steps_buffer !== undefined) document.getElementById('steps-info').innerText = data.steps_buffer + '/10';
     
-    // XP
     if(data.xp !== undefined) {
         const maxXp = data.max_xp || gameState.max_xp;
         document.getElementById('xp-text').innerText = `${data.xp} / ${maxXp}`;
@@ -460,19 +548,36 @@ window.switchTab = function(name) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById('tab-' + name).classList.add('active');
-    
-    // Jeśli wybrano ekwipunek, można by go odświeżyć, ale initGame robi to na starcie
 }
 
 function toggleMusic() {
     const btn = document.getElementById('music-btn');
-    if (isPlaying) { audio.pause(); isPlaying = false; btn.innerText = '🔇'; btn.classList.remove('playing'); } 
-    else { if (!audio.src) playRandomTrack(); else audio.play(); isPlaying = true; btn.innerText = '🔊'; btn.classList.add('playing'); }
+    if (isPlaying) { 
+        explorationAudio.pause(); 
+        combatAudio.pause();
+        isPlaying = false; 
+        btn.innerText = '🔇'; 
+        btn.classList.remove('playing'); 
+    } else { 
+        if (inCombatMode) {
+            combatAudio.play();
+        } else {
+            if (!explorationAudio.src) playRandomTrack(); else explorationAudio.play();
+        }
+        isPlaying = true; 
+        btn.innerText = '🔊'; 
+        btn.classList.add('playing'); 
+    }
 }
-function setVolume(val) { audio.volume = val; }
+
+function setVolume(val) { 
+    explorationAudio.volume = val;
+    combatAudio.volume = val;
+}
+
 function playRandomTrack() {
     let next = Math.floor(Math.random() * playlist.length);
-    audio.src = playlist[next];
-    audio.play().catch(e => console.log("Autoplay blocked:", e));
+    explorationAudio.src = playlist[next];
+    explorationAudio.play().catch(e => console.log("Autoplay blocked:", e));
 }
-audio.addEventListener('ended', playRandomTrack);
+explorationAudio.addEventListener('ended', playRandomTrack);
