@@ -128,13 +128,63 @@
             font-size: 16px;
         }
         .close-x:hover { filter: brightness(0.9); transform: translateY(-1px); }
+
+        /* Auth & Character Selection */
+        .auth-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 2001; display: none; flex-direction: column; align-items: center; justify-content: center; }
+        .auth-form { background: #1b1b1b; padding: 30px; border-radius: 8px; width: 300px; color: #fff; }
+        .auth-form h2 { margin-top: 0; color: #00e676; }
+        .auth-form input { width: 100%; padding: 10px; margin: 10px 0; background: #252525; border: 1px solid #444; color: #fff; border-radius: 4px; box-sizing: border-box; }
+        .auth-form button { width: 100%; padding: 12px; background: #00e676; color: #000; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .auth-form button:hover { background: #00c853; }
+        .auth-form .toggle-link { text-align: center; margin-top: 15px; color: #888; font-size: 12px; }
+        .auth-form .toggle-link a { color: #00e676; cursor: pointer; text-decoration: underline; }
+
+        .char-selection { background: #1b1b1b; padding: 30px; border-radius: 8px; width: 400px; color: #fff; }
+        .char-selection h2 { margin-top: 0; color: #00e676; }
+        .char-slots { display: flex; flex-direction: column; gap: 10px; margin: 20px 0; }
+        .char-slot { background: #252525; padding: 15px; border-radius: 5px; border: 1px solid #444; cursor: pointer; transition: 0.2s; }
+        .char-slot:hover { border-color: #00e676; background: #2a2a2a; }
+        .char-slot.empty { color: #888; }
+        .char-slot-name { font-weight: bold; color: #00e676; }
+        .char-slot-class { font-size: 12px; color: #bbb; }
     </style>
 </head>
 <body>
 
+<div id="auth-modal" class="auth-modal">
+    <div class="auth-form">
+        <h2 id="auth-title">Zaloguj się</h2>
+        <div id="login-form">
+            <input type="text" id="login-username" placeholder="Nazwa użytkownika">
+            <input type="password" id="login-password" placeholder="Hasło">
+            <label style="display:flex; align-items:center; gap:8px; margin:10px 0; color:#bbb; font-size:12px;">
+                <input type="checkbox" id="remember-me" style="width:16px; height:16px; cursor:pointer;">
+                Zapamiętaj mnie na 7 dni
+            </label>
+            <button onclick="handleLogin()">Zaloguj</button>
+            <div class="toggle-link">Nowe konto? <a onclick="toggleAuthForm()">Zarejestruj się</a></div>
+        </div>
+        <div id="register-form" style="display:none;">
+            <input type="text" id="register-username" placeholder="Nazwa użytkownika">
+            <input type="password" id="register-password" placeholder="Hasło">
+            <input type="password" id="register-password2" placeholder="Potwierdź hasło">
+            <button onclick="handleRegister()">Zarejestruj</button>
+            <div class="toggle-link">Masz już konto? <a onclick="toggleAuthForm()">Zaloguj się</a></div>
+        </div>
+    </div>
+</div>
+
+<div id="char-selection-modal" class="modal">
+    <div class="char-selection">
+        <h2>Wybierz Postać</h2>
+        <div class="char-slots" id="char-slots-container"></div>
+        <button class="combat-btn" style="width:100%; margin-top:20px;" onclick="document.getElementById('char-selection-modal').style.display='none'">Zamknij</button>
+    </div>
+</div>
+
 <div id="start-screen" class="modal" style="display:flex;">
     <h1>RPG WORLD</h1>
-    <button class="combat-btn" onclick="startGame()">ROZPOCZNIJ PRZYGODĘ 🔊</button>
+    <button class="combat-btn" onclick="showAuthModal()">ZALOGUJ SIĘ</button>
 </div>
 
 <div id="game-layout">
@@ -149,10 +199,13 @@
     </div>
 
     <div id="right-panel">
-        <div style="padding:15px; border-bottom:1px solid #333; display:flex; align-items:center; gap:10px;">
-            <button id="music-btn" onclick="toggleMusic()" style="width:40px; height:40px; background:#333; border:none; color:white; border-radius:50%;">🔇</button>
-            <div style="font-size:12px; color:#888;">GŁOŚNOŚĆ</div>
-            <input type="range" min="0" max="1" step="0.1" oninput="setVolume(this.value)">
+        <div style="padding:15px; border-bottom:1px solid #333; display:flex; align-items:center; gap:10px; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:10px; flex:1;">
+                <button id="music-btn" onclick="toggleMusic()" style="width:40px; height:40px; background:#333; border:none; color:white; border-radius:50%;">🔇</button>
+                <div style="font-size:12px; color:#888;">GŁOŚNOŚĆ</div>
+                <input type="range" min="0" max="1" step="0.1" oninput="setVolume(this.value)">
+            </div>
+            <button id="logout-btn" onclick="handleLogout()" style="padding:8px 12px; background:#d32f2f; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px; display:none;">Wyloguj</button>
         </div>
 
         <div class="tabs">

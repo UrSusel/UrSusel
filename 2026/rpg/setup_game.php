@@ -161,6 +161,17 @@ try {
     echo "<h1 style='color:green'>✅ Gotowe! (Tutorial world recreated)</h1>";
     echo "<a href='index.php'>WRÓĆ DO GRY</a>";
 
+    // Ensure last_seen column exists (non-destructive, safe)
+    $colCheck = $pdo->prepare("
+        SELECT COUNT(*) AS cnt FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'characters' AND COLUMN_NAME = 'last_seen'
+    ");
+    $colCheck->execute();
+    $has = (int)$colCheck->fetchColumn();
+    if (!$has) {
+        $pdo->exec("ALTER TABLE characters ADD COLUMN last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+    }
+
 } catch (PDOException $e) {
     die("Błąd SQL: " . $e->getMessage());
 }

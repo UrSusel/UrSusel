@@ -579,3 +579,161 @@ function toggleMusic() {
 function setVolume(val) { explorationAudio.volume = val; combatAudio.volume = val; }
 function playRandomTrack() { let next = Math.floor(Math.random() * playlist.length); explorationAudio.src = playlist[next]; explorationAudio.play().catch(e => console.log("Autoplay blocked:", e)); }
 explorationAudio.addEventListener('ended', playRandomTrack);
+
+// --- AUTH & CHARACTER SELECTION ---
+
+function showAuthModal() {
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('auth-modal').style.display = 'flex';
+    document.getElementById('login-form').style.display = 'block';
+    document.getElementById('register-form').style.display = 'none';
+}
+
+function toggleAuthForm() {
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    const title = document.getElementById('auth-title');
+    
+    if (loginForm.style.display === 'none') {
+        loginForm.style.display = 'block';
+        registerForm.style.display = 'none';
+        title.innerText = 'Zaloguj się';
+    } else {
+        loginForm.style.display = 'none';
+        registerForm.style.display = 'block';
+        title.innerText = 'Zarejestruj się';
+    }
+}
+
+async function handleLogin() {
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value;
+    const rememberMe = document.getElementById('remember-me').checked;
+    
+    if (!username || !password) {
+        alert('Uzupełnij wszystkie pola.');
+        return;
+    }
+    
+    const data = await apiPost('login_account', { username, password, remember_me: rememberMe });
+    if (data.status === 'success') {
+        document.getElementById('auth-modal').style.display = 'none';
+        await loadCharacterSelection();
+    } else {
+        alert(data.message || 'Błąd logowania.');
+    }
+}
+
+async function handleRegister() {
+    const username = document.getElementById('register-username').value.trim();
+    const password = document.getElementById('register-password').value;
+    const password2 = document.getElementById('register-password2').value;
+    
+    if (!username || !password || !password2) {
+        alert('Uzupełnij wszystkie pola.');
+        return;
+    }
+    
+    const data = await apiPost('register_account', { username, password, password2 });
+    if (data.status === 'success') {
+        document.getElementById('auth-modal').style.display = 'none';
+        await loadCharacterSelection();
+    } else {
+        alert(data.message || 'Błąd rejestracji.');
+    }
+}
+
+async function handleLogout() {
+    await apiPost('logout_account');
+    document.getElementById('logout-btn').style.display = 'none';
+    document.getElementById('start-screen').style.display = 'flex';
+    document.getElementById('game-layout').style.display = 'none';
+    showAuthModal();
+}
+
+async function loadCharacterSelection() {
+    try {
+        const data = await apiPost('get_characters');
+        if (data.status !== 'success') {
+            alert('Błąd pobierania postaci.');
+            return;
+        }
+        
+        const container = document.getElementById('char-slots-container');
+        container.innerHTML = '';
+        
+        data.characters.forEach((char, idx) => {
+            const slot = document.createElement('div');
+            slot.className = 'char-slot' + (char.id ? '' : ' empty');
+            
+            if (char.id) {
+                slot.innerHTML = `
+                    <div class="char-slot-name">${escapeHtml(char.name)}</div>
+                    <div class="char-slot-class">Poziom ${char.level}</div>
+                `;
+                slot.onclick = () => selectCharacter(char.id);
+            } else {
+                slot.innerHTML = '<div>+ Utwórz nową postać</div>';
+                slot.onclick = () => createNewCharacter();
+            }
+            container.appendChild(slot);
+        });
+        
+        document.getElementById('char-selection-modal').style.display = 'flex';
+    } catch (e) {
+        console.error('loadCharacterSelection error', e);
+    }
+}
+
+async function selectCharacter(charId) {
+    const data = await apiPost('select_character', { character_id: charId });
+    if (data.status === 'success') {
+        document.getElementById('char-selection-modal').style.display = 'none';
+        document.getElementById('logout-btn').style.display = 'inline-block';
+        startGame();
+    }
+}
+
+async function createNewCharacter() {
+    let name = prompt("Podaj nazwę postaci:", "Nowa postać");
+    if (name === null) return; // user cancelled
+    name = name.trim() || "Nowa postać";
+    const data = await apiPost('create_character', { name });
+    if (data.status === 'success') {
+        await loadCharacterSelection();
+    } else {
+        alert(data.message || 'Nie można utworzyć postaci.');
+    }
+}
+
+// Check for remembered login on page load
+async function checkRememberedLogin() {
+    try {
+        const data = await apiPost('check_remembered_login');
+        if (data.status === 'success' && data.user_id) {
+            // Auto-login successful - show character selection
+            document.getElementById('start-screen').style.display = 'none';
+            await loadCharacterSelection();
+        } else {
+            // Not logged in - show auth modal
+            showAuthModal();
+        }
+    } catch (e) {
+        console.error('checkRememberedLogin error', e);
+        showAuthModal();
+    }
+}
+
+window.showAuthModal = showAuthModal;
+window.toggleAuthForm = toggleAuthForm;
+window.handleLogin = handleLogin;
+window.handleRegister = handleRegister;
+window.handleLogout = handleLogout;
+window.loadCharacterSelection = loadCharacterSelection;
+window.selectCharacter = selectCharacter;
+window.createNewCharacter = createNewCharacter;
+
+// On initial page load, check for remembered login
+document.addEventListener('DOMContentLoaded', () => {
+    checkRememberedLogin();
+});

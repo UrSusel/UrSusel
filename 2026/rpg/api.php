@@ -1,18 +1,127 @@
 <?php
 require 'db.php';
 header('Content-Type: application/json');
+ini_set('display_errors', '0');
+session_start();
 
 $input = json_decode(file_get_contents('php://input'), true);
-$action = $input['action'] ?? '';
-$userId = 1; 
+$action = $input['action'] ?? '';  // <-- ADD THIS LINE
+
+// --- MIGRATION: Ensure last_seen column exists ---
+try {
+    $checkCol = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'characters' AND COLUMN_NAME = 'last_seen'");
+    if ((int)$checkCol->fetchColumn() === 0) {
+        $pdo->exec("ALTER TABLE characters ADD COLUMN last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+    }
+} catch (Exception $e) {
+    // ignore if migration fails
+}
+
+// --- HELPER: Check remembered login via cookie FIRST ---
+if (!isset($_SESSION['user_id']) && isset($_COOKIE['rpg_remember'])) {
+    $token = $_COOKIE['rpg_remember'];
+    if (strpos($token, ':') !== false) {
+        list($storedUserId, $hash) = explode(':', $token, 2);
+        $expectedHash = hash_hmac('sha256', $storedUserId, 'rpg_secret_key_change_in_production');
+        if (hash_equals($expectedHash, $hash)) {
+            $_SESSION['user_id'] = (int)$storedUserId;
+        }
+    }
+}
+
+$userId = $_SESSION['user_id'] ?? null;
+
+// --- AUTH ENDPOINTS ---
+
+if ($action === 'register_account') {
+    $username = $input['username'] ?? '';
+    $password = $input['password'] ?? '';
+    $password2 = $input['password2'] ?? '';
+    
+    if (strlen($username) < 3 || strlen($password) < 3) {
+        echo json_encode(['status' => 'error', 'message' => 'Username i hasło muszą mieć co najmniej 3 znaki.']); exit;
+    }
+    if ($password !== $password2) {
+        echo json_encode(['status' => 'error', 'message' => 'Hasła się nie zgadzają.']); exit;
+    }
+    
+    $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ?");
+    $stmt->execute([$username]);
+    if ($stmt->fetch()) {
+        echo json_encode(['status' => 'error', 'message' => 'Nazwa użytkownika już zajęta.']); exit;
+    }
+    
+    $hashedPwd = password_hash($password, PASSWORD_DEFAULT);
+    try {
+        $stmt = $pdo->prepare("INSERT INTO users (username, password) VALUES (?, ?)");
+        $stmt->execute([$username, $hashedPwd]);
+        $newUserId = $pdo->lastInsertId();
+        $_SESSION['user_id'] = $newUserId;
+        echo json_encode(['status' => 'success', 'user_id' => $newUserId]); exit;
+    } catch (PDOException $e) {
+        echo json_encode(['status' => 'error', 'message' => 'Błąd bazy danych.']); exit;
+    }
+}
+
+if ($action === 'login_account') {
+    $username = $input['username'] ?? '';
+    $password = $input['password'] ?? '';
+    $rememberMe = $input['remember_me'] ?? false;
+    
+    $stmt = $pdo->prepare("SELECT id, password FROM users WHERE username = ?");
+    $stmt->execute([$username]);
+    $user = $stmt->fetch();
+    
+    if (!$user || !password_verify($password, $user['password'])) {
+        echo json_encode(['status' => 'error', 'message' => 'Nieprawidłowa nazwa lub hasło.']); exit;
+    }
+    
+    $_SESSION['user_id'] = $user['id'];
+    
+    // Set remember-me cookie if requested (7 days = 604800 seconds)
+    if ($rememberMe) {
+        $hash = hash_hmac('sha256', $user['id'], 'rpg_secret_key_change_in_production');
+        $token = $user['id'] . ':' . $hash;
+        setcookie('rpg_remember', $token, time() + 604800, '/', '', false, true);
+    }
+    
+    echo json_encode(['status' => 'success', 'user_id' => $user['id']]); exit;
+}
+
+if ($action === 'logout_account') {
+    session_destroy();
+    setcookie('rpg_remember', '', time() - 3600, '/');
+    echo json_encode(['status' => 'success']); exit;
+}
+
+if ($action === 'check_remembered_login') {
+    if ($userId) {
+        echo json_encode(['status' => 'success', 'user_id' => $userId]); exit;
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Not logged in']); exit;
+    }
+}
+
+// --- REQUIRE LOGIN FOR REST ---
+if (!$userId) {
+    echo json_encode(['status' => 'error', 'message' => 'Nie zalogowany']); exit;
+}
+
+// Use session character_id if available, otherwise fetch first character
+$charId = $_SESSION['char_id'] ?? null;
+if (!$charId) {
+    $stmt = $pdo->prepare("SELECT id FROM characters WHERE user_id = ? LIMIT 1");
+    $stmt->execute([$userId]);
+    $row = $stmt->fetch();
+    $charId = $row['id'] ?? 0;
+}
 
 // Pobranie postaci
-$stmt = $pdo->prepare("SELECT * FROM characters WHERE user_id = ? LIMIT 1");
-$stmt->execute([$userId]);
+$stmt = $pdo->prepare("SELECT * FROM characters WHERE id = ? AND user_id = ? LIMIT 1");
+$stmt->execute([$charId, $userId]);
 $char = $stmt->fetch(PDO::FETCH_ASSOC);
-$charId = $char['id'] ?? 0;
 
-if (!$char && $action !== 'select_class') {
+if (!$char && $action !== 'select_class' && $action !== 'get_characters' && $action !== 'create_character' && $action !== 'select_character') {
     echo json_encode(['status' => 'error', 'message' => 'Brak postaci']); exit;
 }
 
@@ -36,28 +145,96 @@ function hexDistance($x1, $y1, $x2, $y2) {
 
 // --- NOWE ENDPOINTY ŚWIATA ---
 
-if ($action === 'get_worlds_list') {
+if ($action === 'get_characters') {
+    $stmt = $pdo->prepare("SELECT id, name, class_id, level, hp, max_hp FROM characters WHERE user_id = ? ORDER BY id");
+    $stmt->execute([$userId]);
+    $characters = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    $stmt = $pdo->query("
-        SELECT w.id, w.name, w.width, w.height, 
-        (SELECT COUNT(*) FROM characters c WHERE c.world_id = w.id) as player_count
-        FROM worlds w 
-        WHERE w.is_tutorial = 0
-    ");
+    // Pad to 3 slots
+    while (count($characters) < 3) {
+        $characters[] = ['id' => null, 'name' => null, 'level' => 0];
+    }
+    
+    echo json_encode(['status' => 'success', 'characters' => $characters]); exit;
+}
+
+if ($action === 'select_character') {
+    $charIdToSelect = (int)$input['character_id'];
+    $stmt = $pdo->prepare("SELECT id FROM characters WHERE id = ? AND user_id = ?");
+    $stmt->execute([$charIdToSelect, $userId]);
+    if (!$stmt->fetch()) {
+        echo json_encode(['status' => 'error', 'message' => 'Postać nie istnieje.']); exit;
+    }
+    $_SESSION['char_id'] = $charIdToSelect;
+    echo json_encode(['status' => 'success']); exit;
+}
+
+if ($action === 'create_character') {
+    $name = trim($input['name'] ?? '') ?: 'Nowa postać';
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM characters WHERE user_id = ?");
+    $stmt->execute([$userId]);
+    if ($stmt->fetchColumn() >= 3) {
+        echo json_encode(['status' => 'error', 'message' => 'Maksymalnie 3 postacie.']); exit;
+    }
+    
+    try {
+        $stmt = $pdo->prepare("INSERT INTO characters (user_id, name, world_id) VALUES (?, ?, 1)");
+        $stmt->execute([$userId, $name]);
+        $newCharId = $pdo->lastInsertId();
+        // Auto-select the new character
+        $_SESSION['char_id'] = $newCharId;
+        echo json_encode(['status' => 'success', 'character_id' => $newCharId]); exit;
+    } catch (PDOException $e) {
+        echo json_encode(['status' => 'error', 'message' => 'Błąd bazy danych.']); exit;
+    }
+}
+
+if ($action === 'get_worlds_list') {
+    $timeoutMinutes = 5;
+    
+    // Try to count with last_seen, fallback to counting all if column doesn't exist
+    try {
+        $stmt = $pdo->prepare("
+            SELECT w.id, w.name, w.width, w.height,
+            (SELECT COUNT(*) FROM characters c WHERE c.world_id = w.id AND c.last_seen > DATE_SUB(NOW(), INTERVAL ? MINUTE)) as player_count
+            FROM worlds w
+            WHERE w.is_tutorial = 0
+        ");
+        $stmt->execute([$timeoutMinutes]);
+    } catch (Exception $e) {
+        // Fallback: count all characters if last_seen doesn't work
+        $stmt = $pdo->query("
+            SELECT w.id, w.name, w.width, w.height,
+            (SELECT COUNT(*) FROM characters c WHERE c.world_id = w.id) as player_count
+            FROM worlds w
+            WHERE w.is_tutorial = 0
+        ");
+    }
+    
     $worlds = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    foreach ($worlds as &$w) { 
+        $w['player_limit'] = 20; 
+    }
+    
     echo json_encode(['status' => 'success', 'worlds' => $worlds]); exit;
 }
 
 if ($action === 'join_world') {
     $targetWorldId = (int)$input['world_id'];
     
-    // Sprawdź czy świat istnieje
     $stmt = $pdo->prepare("SELECT id FROM worlds WHERE id = ?");
     $stmt->execute([$targetWorldId]);
     if (!$stmt->fetch()) {
         echo json_encode(['status' => 'error', 'message' => 'Świat nie istnieje.']); exit;
     }
 
+    // Check player limit (20)
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM characters WHERE world_id = ?");
+    $stmt->execute([$targetWorldId]);
+    if ($stmt->fetchColumn() >= 20) {
+        echo json_encode(['status' => 'error', 'message' => 'Świat jest pełny (20/20).']); exit;
+    }
 
     $curWorldId = (int)($char['world_id'] ?? 0);
     $pdo->prepare("INSERT INTO saved_positions (character_id, world_id, pos_x, pos_y) VALUES (?, ?, ?, ?)
@@ -111,6 +288,13 @@ if ($action === 'select_class') {
 }
 
 if ($action === 'get_state') {
+    // Attempt to update last_seen if column exists — ignore errors to remain backward compatible
+    try {
+        $pdo->prepare("UPDATE characters SET last_seen = NOW() WHERE id = ?")->execute([$charId]);
+    } catch (Exception $e) {
+        // ignore if column missing
+    }
+
     $invStmt = $pdo->prepare("SELECT i.id as item_id, i.name, i.type, i.power, i.icon, inv.quantity, inv.is_equipped FROM inventory inv JOIN items i ON inv.item_id = i.id WHERE inv.character_id = ?");
     $invStmt->execute([$charId]);
     $inventory = $invStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -296,7 +480,8 @@ if ($action === 'combat_attack') {
     $cState = json_decode($char['combat_state'], true);
     if ($cState['player_ap'] < 2) { echo json_encode(['status' => 'error', 'message' => 'Atak wymaga 2 AP!']); exit; }
     $dist = hexDistance($cState['player_pos']['x'], $cState['player_pos']['y'], $cState['enemy_pos']['x'], $cState['enemy_pos']['y']);
-    if ($dist > 1.1) { echo json_encode(['status' => 'error', 'message' => 'Wróg za daleko!']); exit; }
+    if ($dist > 1.1) { echo json_encode(['status' => 'error', 'message' => 'Wróg za daleko!']); exit;
+    }
     
     $invStmt = $pdo->prepare("SELECT items.power FROM inventory JOIN items ON inventory.item_id = items.id WHERE character_id = ? AND is_equipped = 1 AND items.type = 'weapon'");
     $invStmt->execute([$charId]);
@@ -407,5 +592,24 @@ if ($action === 'enemy_turn') {
     $died = ($char['hp'] <= 0); if ($died) { $char['hp'] = 0; $cState = NULL; }
     $pdo->prepare("UPDATE characters SET hp=?, combat_state=? WHERE id=?")->execute([$char['hp'], json_encode($cState), $charId]);
     echo json_encode(['status'=>'success', 'hp'=>$char['hp'], 'log'=>$log, 'combat_state'=>$cState, 'player_died'=>$died, 'actions' => $actions_performed]); exit;
+}
+
+if ($action === 'get_other_players') {
+    $timeoutMinutes = 5;
+    $currentWorldId = (int)($char['world_id'] ?? 0);
+    
+    // Get all players on the same world (excluding self), recently seen
+    $stmt = $pdo->prepare("
+        SELECT id, name, pos_x, pos_y, class_id, level
+        FROM characters
+        WHERE world_id = ? 
+        AND id != ?
+        AND last_seen > DATE_SUB(NOW(), INTERVAL ? MINUTE)
+        AND tutorial_completed = 1
+    ");
+    $stmt->execute([$currentWorldId, $charId, $timeoutMinutes]);
+    $otherPlayers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    echo json_encode(['status' => 'success', 'players' => $otherPlayers]); exit;
 }
 ?>
