@@ -17,10 +17,10 @@ let gameState = {
 let inCombatMode = false;
 let combatState = null;
 
-// --- KONFIGURACJA AUDIO ---
+// --- DŹWIĘKI ---
 const AUDIO_PATHS = {
     walk: Array.from({length: 8}, (_, i) => `assets/walking/stepdirt_${i+1}.wav`),
-    hit: ['assets/combat/damage/Hit 1.wav', 'assets/combat/damage/Hit 2.wav'],
+    hit: ['assets/combat/Hit 1.wav', 'assets/combat/Hit 2.wav'],
     damage: Array.from({length: 10}, (_, i) => `assets/combat/damage/damage_${i+1}_ian.wav`),
     combatMusic: "assets/combat/If It's a Fight You Want.ogg"
 };
@@ -32,11 +32,9 @@ combatAudio.loop = true;
 let isPlaying = false;
 explorationAudio.volume = 0.2;
 combatAudio.volume = 0.2;
-
-// Zmienne do obsługi kroków
 let stepInterval = null;
 
-// Grafiki gracza
+// Grafiki gracza (Pełna lista z poprzedniej wersji)
 const playerSprites = {
     idle: ['assets/player/idle1.png', 'assets/player/idle2.png', 'assets/player/idle3.png','assets/player/idle4.png', 'assets/player/idle5.png', 'assets/player/idle6.png','assets/player/idle7.png', 'assets/player/idle8.png', 'assets/player/idle9.png'],
     run: ['assets/player/run1.png', 'assets/player/run2.png', 'assets/player/run3.png', 'assets/player/run4.png', 'assets/player/run5.png', 'assets/player/run6.png']
@@ -47,11 +45,10 @@ let currentFrameIndex = 0;
 let animationInterval;
 let moveTimeout = null;
 const ANIMATION_SPEED = 100;
-const MOVEMENT_SPEED_PX = 150; // Piksele na sekundę
+const MOVEMENT_SPEED_PX = 150; // Stała prędkość (piksele na sekundę)
 
 // --- SYSTEM AUDIO ---
 
-// Funkcja odtwarzająca losowy dźwięk z kategorii
 function playSoundEffect(category, damageValue = 0) {
     let src = '';
     
@@ -62,7 +59,6 @@ function playSoundEffect(category, damageValue = 0) {
         const randIndex = Math.floor(Math.random() * AUDIO_PATHS.hit.length);
         src = AUDIO_PATHS.hit[randIndex];
     } else if (category === 'damage') {
-        // Logika: 1-2 -> plik 1, 3-4 -> plik 2, itd. Max plik 10.
         let index = Math.ceil(damageValue / 2);
         if (index < 1) index = 1;
         if (index > 10) index = 10;
@@ -71,20 +67,17 @@ function playSoundEffect(category, damageValue = 0) {
 
     if (src) {
         const sfx = new Audio(src);
-        sfx.volume = 0.3; // Trochę głośniej niż muzyka
+        sfx.volume = 0.35; 
         sfx.play().catch(() => {});
     }
 }
 
-// Zarządzanie krokami
 function startWalkingSound() {
     if (stepInterval) return;
-    // Odtwórz pierwszy krok od razu
     playSoundEffect('walk');
-    // Kolejne co 400ms (zsynchronizowane mniej więcej z biegiem)
     stepInterval = setInterval(() => {
         playSoundEffect('walk');
-    }, 400);
+    }, 400); // Co 400ms kolejny krok
 }
 
 function stopWalkingSound() {
@@ -94,7 +87,7 @@ function stopWalkingSound() {
     }
 }
 
-// --- START GRY ---
+// --- INIT ---
 
 function startGame() {
     document.getElementById('start-screen').style.display = 'none';
@@ -163,6 +156,7 @@ async function loadAndDrawMap() {
     });
 }
 
+// --- NAPRAWA RUCHU WIZUALNEGO ---
 function updatePlayerVisuals(x, y, isInstant = false) {
     const targetTile = document.querySelector(`.tile[data-x='${x}'][data-y='${y}']`);
     if (targetTile) {
@@ -177,16 +171,16 @@ function updatePlayerVisuals(x, y, isInstant = false) {
             playerMarker.style.top = targetPixelY + 'px';
             setAnimationState('idle');
         } else {
+            // Obliczamy dystans w pikselach dla stałej prędkości
             const currentLeft = parseFloat(playerMarker.style.left || 0);
             const currentTop = parseFloat(playerMarker.style.top || 0);
-
             const deltaX = targetPixelX - currentLeft;
             const deltaY = targetPixelY - currentTop;
             const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            
             const duration = distance / MOVEMENT_SPEED_PX; 
 
             setAnimationState('run');
-            
             playerMarker.style.transition = `top ${duration}s linear, left ${duration}s linear`;
             playerMarker.style.left = targetPixelX + 'px';
             playerMarker.style.top = targetPixelY + 'px';
@@ -208,59 +202,41 @@ function centerMapOnPlayer(pixelX, pixelY) {
     map.style.transform = `translate(${moveX}px, ${moveY}px)`;
 }
 
-// --- ANIMACJE ---
 function setAnimationState(newState) {
     if (currentAnimState === newState) return;
+    currentAnimState = newState; currentFrameIndex = 0; updatePlayerSprite();
     
-    currentAnimState = newState; 
-    currentFrameIndex = 0; 
-    updatePlayerSprite();
-
-    // Obsługa dźwięku kroków przy zmianie stanu
-    if (newState === 'run') {
-        startWalkingSound();
-    } else {
-        stopWalkingSound();
-    }
+    // Obsługa dźwięku kroków
+    if (newState === 'run') startWalkingSound();
+    else stopWalkingSound();
 }
 
 function startPlayerAnimation() {
     if (animationInterval) clearInterval(animationInterval);
     updatePlayerSprite();
     animationInterval = setInterval(() => {
-        currentFrameIndex++;
-        if (currentFrameIndex >= playerSprites[currentAnimState].length) currentFrameIndex = 0;
+        currentFrameIndex = (currentFrameIndex + 1) % playerSprites[currentAnimState].length;
         updatePlayerSprite();
     }, ANIMATION_SPEED);
 }
-
 function updatePlayerSprite() {
-    const frames = playerSprites[currentAnimState];
-    if (frames && frames.length > 0) playerMarker.style.backgroundImage = `url('${frames[currentFrameIndex]}')`;
+    playerMarker.style.backgroundImage = `url('${playerSprites[currentAnimState][currentFrameIndex]}')`;
 }
 
 // --- LOGIKA GRY ---
+
 async function attemptMove(targetX, targetY) {
     if (gameState.hp <= 0 || gameState.in_combat) return;
-
-    if (targetX < gameState.x) playerMarker.style.transform = "scaleX(-1)";
-    else if (targetX > gameState.x) playerMarker.style.transform = "scaleX(1)";
-
+    playerMarker.style.transform = (targetX < gameState.x) ? "scaleX(-1)" : "scaleX(1)";
     const res = await fetch('api.php', { method: 'POST', body: JSON.stringify({ action: 'move', x: targetX, y: targetY }) });
     const result = await res.json();
 
     if (result.status === 'success') {
         gameState.x = result.new_x; gameState.y = result.new_y;
         gameState.hp = parseInt(result.hp); gameState.energy = parseInt(result.energy);
-        
         updatePlayerVisuals(gameState.x, gameState.y, false);
         updateUI(result);
-        
-        if (result.encounter) {
-            setTimeout(() => { 
-                initGame(); 
-            }, 1000); 
-        }
+        if (result.encounter) setTimeout(() => { initGame(); }, 1000);
     }
 }
 
@@ -268,27 +244,17 @@ function renderInventory(inventory) {
     const container = document.getElementById('inventory-grid');
     if (!container) return;
     container.innerHTML = '';
-
-    if (!inventory || inventory.length === 0) {
-        container.innerHTML = '<div style="color:#666; padding:10px;">Pusty plecak...</div>';
-        return;
-    }
-
+    if (!inventory || inventory.length === 0) { container.innerHTML = '<div style="color:#666; padding:10px;">Pusto...</div>'; return; }
     inventory.forEach(item => {
         const slot = document.createElement('div');
         slot.className = 'item-slot';
         if (item.is_equipped == 1) slot.classList.add('equipped');
-        
-        slot.innerHTML = `
-            <div style="font-size:24px;">${item.icon || '📦'}</div>
-            <div style="font-size:11px; margin-top:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.name}</div>
-            ${item.quantity > 1 ? `<div style="position:absolute; bottom:2px; right:5px; font-size:10px; color:#aaa;">x${item.quantity}</div>` : ''}
-        `;
+        slot.innerHTML = `<div style="font-size:24px;">${item.icon||'📦'}</div><div style="font-size:11px;">${item.name}</div>${item.quantity>1?`<div style="position:absolute;bottom:2px;right:5px;font-size:10px;color:#aaa;">x${item.quantity}</div>`:''}`;
         container.appendChild(slot);
     });
 }
 
-// --- WALKA TAKTYCZNA ---
+// --- WALKA ---
 
 function toggleCombatMode(active, currentHp, enemyHp = 0) {
     const combatScreen = document.getElementById('combat-screen');
@@ -297,28 +263,19 @@ function toggleCombatMode(active, currentHp, enemyHp = 0) {
 
     // Przełączanie muzyki
     if (active && isPlaying) {
-        explorationAudio.pause();
-        combatAudio.currentTime = 0;
-        combatAudio.play().catch(e => console.log(e));
+        explorationAudio.pause(); combatAudio.currentTime = 0; combatAudio.play().catch(()=>{});
     } else if (!active && isPlaying) {
-        combatAudio.pause();
-        explorationAudio.play().catch(e => console.log(e));
+        combatAudio.pause(); explorationAudio.play().catch(()=>{});
     }
 
     if (active) {
-        mapDiv.style.display = 'none'; 
-        combatScreen.style.display = 'flex';
-        
+        mapDiv.style.display = 'none'; combatScreen.style.display = 'flex';
         let existingContainer = document.getElementById('combat-arena-container');
         if (existingContainer) existingContainer.remove();
-
         let container = document.createElement('div');
         container.id = 'combat-arena-container';
-        container.style.width = '550px'; 
-        container.style.height = '350px';
-        container.style.position = 'relative';
-        container.style.margin = '20px auto'; 
-        
+        container.style.width = '550px'; container.style.height = '350px';
+        container.style.position = 'relative'; container.style.margin = '20px auto';
         combatScreen.insertBefore(container, document.getElementById('combat-log'));
         
         if (combatState) renderCombatArena();
@@ -326,41 +283,29 @@ function toggleCombatMode(active, currentHp, enemyHp = 0) {
         document.getElementById('combat-hp').innerText = gameState.hp;
         updateApDisplay();
     } else {
-        mapDiv.style.display = 'block';
-        combatScreen.style.display = 'none';
-        combatState = null;
-        loadAndDrawMap();
+        mapDiv.style.display = 'block'; combatScreen.style.display = 'none';
+        combatState = null; loadAndDrawMap();
         updatePlayerVisuals(gameState.x, gameState.y, true);
     }
 }
 
 function updateApDisplay() {
     const log = document.getElementById('combat-log');
-    if (combatState && combatState.turn === 'player') {
-        log.innerText = `Twój ruch. AP: ${combatState.player_ap}/2.`;
-    } else {
-        log.innerText = "Tura wroga...";
-    }
+    if (combatState && combatState.turn === 'player') log.innerText = `Twój ruch. AP: ${combatState.player_ap}/2.`;
+    else log.innerText = "Tura wroga...";
 }
 
 function renderCombatArena() {
     const container = document.getElementById('combat-arena-container');
     container.innerHTML = ''; 
-
     if (!combatState || !combatState.tiles) return;
 
     combatState.tiles.forEach(t => {
         const tile = document.createElement('div');
         tile.className = `tile ${t.type}`;
-        
         let offsetX = (t.y % 2 !== 0) ? (HEX_WIDTH / 2) : 0;
-        let posX = (t.x * HEX_WIDTH) + offsetX;
-        let posY = (t.y * HEX_HEIGHT);
-
-        tile.style.left = posX + 'px';
-        tile.style.top = posY + 'px';
-        tile.style.zIndex = t.y;
-        
+        tile.style.left = (t.x * HEX_WIDTH + offsetX) + 'px';
+        tile.style.top = (t.y * HEX_HEIGHT) + 'px';
         tile.onclick = () => { if(combatState.turn === 'player' && combatState.player_ap >= 1) handleCombatMove(t.x, t.y); };
         container.appendChild(tile);
     });
@@ -373,18 +318,14 @@ function renderCombatArena() {
 
 function createCombatEntity(pos, type, container) {
     const el = document.createElement('div');
-    el.className = `player ${type}`; 
-    el.id = `combat-${type}`; 
-    
+    el.className = `player ${type}`; el.id = `combat-${type}`; 
     let off = (pos.y % 2 !== 0) ? (HEX_WIDTH / 2) : 0;
     el.style.left = ((pos.x * HEX_WIDTH) + off - 5) + 'px';
     el.style.top = ((pos.y * HEX_HEIGHT) - 12) + 'px';
     el.style.zIndex = 100;
     el.style.backgroundImage = `url('assets/player/idle1.png')`;
-    
     if (type === 'enemy') {
-        el.style.filter = "hue-rotate(150deg) brightness(0.8)"; 
-        el.style.transform = "scaleX(-1)";
+        el.style.filter = "hue-rotate(150deg) brightness(0.8)"; el.style.transform = "scaleX(-1)";
         el.onclick = () => { if(combatState.turn === 'player') handleCombatAttack(); };
     }
     container.appendChild(el);
@@ -393,24 +334,13 @@ function createCombatEntity(pos, type, container) {
 function animateCombatMove(type, targetPos) {
     const el = document.getElementById(`combat-${type}`);
     if (!el) return;
-    
     let off = (targetPos.y % 2 !== 0) ? (HEX_WIDTH / 2) : 0;
-    let targetPxX = (targetPos.x * HEX_WIDTH) + off - 5;
-    let targetPxY = (targetPos.y * HEX_HEIGHT) - 12;
-    
-    // Zmiana na bieg i start dźwięku
     el.style.backgroundImage = `url('assets/player/run1.png')`; 
     startWalkingSound();
-
     el.style.transition = "all 0.4s linear";
-    el.style.left = targetPxX + 'px';
-    el.style.top = targetPxY + 'px';
-    
-    // Stop po zakończeniu ruchu
-    setTimeout(() => { 
-        el.style.backgroundImage = `url('assets/player/idle1.png')`; 
-        stopWalkingSound();
-    }, 400);
+    el.style.left = ((targetPos.x * HEX_WIDTH) + off - 5) + 'px';
+    el.style.top = ((targetPos.y * HEX_HEIGHT) - 12) + 'px';
+    setTimeout(() => { el.style.backgroundImage = `url('assets/player/idle1.png')`; stopWalkingSound(); }, 400);
 }
 
 async function handleCombatMove(x, y) {
@@ -422,30 +352,27 @@ async function handleCombatMove(x, y) {
     } else { document.getElementById('combat-log').innerText = json.message; }
 }
 
-async function handleCombatDefend() {
-    if (!combatState || combatState.turn !== 'player') return;
-    const res = await fetch('api.php', { method: 'POST', body: JSON.stringify({ action: 'combat_defend' }) });
-    const json = await res.json();
-    if (json.status === 'success') {
-        document.getElementById('combat-log').innerText = json.message;
-        combatState = json.combat_state; renderCombatArena();
-    }
-}
-
 async function handleCombatAttack() {
-    // Dźwięk uderzenia gracza
-    playSoundEffect('hit');
-    
+    playSoundEffect('hit'); // PRZYWRÓCONE: Dźwięk zamachu
     const res = await fetch('api.php', { method: 'POST', body: JSON.stringify({ action: 'combat_attack' }) });
     const json = await res.json();
     if (json.status === 'success') {
         document.getElementById('enemy-hp').innerText = json.enemy_hp;
         document.getElementById('combat-log').innerText = json.log;
-        
         combatState = json.combat_state;
         renderCombatArena();
         if (json.win) { setTimeout(() => { toggleCombatMode(false); alert(json.log); }, 1500); }
     } else { document.getElementById('combat-log').innerText = json.message; }
+}
+
+async function handleCombatDefend() {
+    const res = await fetch('api.php', { method: 'POST', body: JSON.stringify({ action: 'combat_defend' }) });
+    const json = await res.json();
+    if (json.status === 'success') {
+        document.getElementById('combat-log').innerText = json.message;
+        combatState = json.combat_state;
+        renderCombatArena();
+    }
 }
 
 async function handleEnemyTurn() {
@@ -469,13 +396,9 @@ async function handleEnemyTurn() {
             } else if (action.type === 'attack') {
                 const pEl = document.getElementById('combat-player');
                 
-                // Dźwięk ataku wroga (uderzenie)
-                playSoundEffect('hit');
-                // Dźwięk obrażeń gracza (zależny od dmg)
-                if (action.dmg > 0) {
-                    // Małe opóźnienie dla lepszego efektu
-                    setTimeout(() => playSoundEffect('damage', action.dmg), 100);
-                }
+                // PRZYWRÓCONE: Dźwięki ataku i obrażeń
+                playSoundEffect('hit'); 
+                if(action.dmg > 0) setTimeout(() => playSoundEffect('damage', action.dmg), 100); 
 
                 if(pEl) pEl.style.filter = "brightness(0.5) sepia(1) hue-rotate(-50deg) saturate(5)"; 
                 setTimeout(() => { if(pEl) pEl.style.filter = ""; }, 200);
@@ -499,49 +422,35 @@ async function useItem(itemId) {
 }
 
 function updateLocalState(data) {
-    gameState.x = parseInt(data.pos_x);
-    gameState.y = parseInt(data.pos_y);
-    gameState.hp = parseInt(data.hp);
-    gameState.max_hp = parseInt(data.max_hp) || 100;
-    gameState.energy = parseInt(data.energy);
-    gameState.max_energy = parseInt(data.max_energy) || 10;
-    gameState.xp = parseInt(data.xp);
-    gameState.max_xp = parseInt(data.max_xp) || 100;
-    gameState.steps_buffer = parseInt(data.steps_buffer);
-    gameState.in_combat = (data.in_combat == 1);
+    gameState.x = parseInt(data.pos_x); gameState.y = parseInt(data.pos_y);
+    gameState.hp = parseInt(data.hp); gameState.max_hp = parseInt(data.max_hp) || 100;
+    gameState.energy = parseInt(data.energy); gameState.max_energy = parseInt(data.max_energy) || 10;
+    gameState.xp = parseInt(data.xp); gameState.max_xp = parseInt(data.max_xp) || 100;
+    gameState.steps_buffer = parseInt(data.steps_buffer); gameState.in_combat = (data.in_combat == 1);
 }
 
 function updateUI(data) {
     if(!data) return;
-    
     if(data.hp !== undefined) {
         const maxHp = data.max_hp || gameState.max_hp;
         document.getElementById('hp').innerText = `${data.hp} / ${maxHp}`;
         document.getElementById('hp-fill').style.width = (data.hp / maxHp * 100) + '%';
     }
-    
     if(data.energy !== undefined) {
         const maxEn = data.max_energy || gameState.max_energy;
         document.getElementById('energy').innerText = `${data.energy} / ${maxEn}`;
         document.getElementById('en-fill').style.width = (data.energy / maxEn * 100) + '%';
     }
-    
     if(data.steps_buffer !== undefined) document.getElementById('steps-info').innerText = data.steps_buffer + '/10';
-    
     if(data.xp !== undefined) {
         const maxXp = data.max_xp || gameState.max_xp;
         document.getElementById('xp-text').innerText = `${data.xp} / ${maxXp}`;
         document.getElementById('xp-fill').style.width = (data.xp / maxXp * 100) + '%';
     }
-    
     if(data.level) document.getElementById('lvl').innerText = data.level;
 }
 
-function checkLifeStatus() {
-    const ds = document.getElementById('death-screen');
-    if (gameState.hp <= 0) ds.style.display = 'flex'; else ds.style.display = 'none';
-}
-
+function checkLifeStatus() { if (gameState.hp <= 0) document.getElementById('death-screen').style.display = 'flex'; else document.getElementById('death-screen').style.display = 'none'; }
 window.selectClass = async function(id) { await fetch('api.php', { method: 'POST', body: JSON.stringify({ action: 'select_class', class_id: id }) }); location.reload(); }
 window.respawnPlayer = async function() { await fetch('api.php', { method: 'POST', body: JSON.stringify({ action: 'respawn' }) }); location.reload(); }
 window.switchTab = function(name) {
@@ -549,32 +458,17 @@ window.switchTab = function(name) {
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById('tab-' + name).classList.add('active');
 }
-
 function toggleMusic() {
     const btn = document.getElementById('music-btn');
     if (isPlaying) { 
-        explorationAudio.pause(); 
-        combatAudio.pause();
-        isPlaying = false; 
-        btn.innerText = '🔇'; 
-        btn.classList.remove('playing'); 
+        explorationAudio.pause(); combatAudio.pause();
+        isPlaying = false; btn.innerText = '🔇'; btn.classList.remove('playing'); 
     } else { 
-        if (inCombatMode) {
-            combatAudio.play();
-        } else {
-            if (!explorationAudio.src) playRandomTrack(); else explorationAudio.play();
-        }
-        isPlaying = true; 
-        btn.innerText = '🔊'; 
-        btn.classList.add('playing'); 
+        if (inCombatMode) combatAudio.play(); else { if (!explorationAudio.src) playRandomTrack(); else explorationAudio.play(); }
+        isPlaying = true; btn.innerText = '🔊'; btn.classList.add('playing'); 
     }
 }
-
-function setVolume(val) { 
-    explorationAudio.volume = val;
-    combatAudio.volume = val;
-}
-
+function setVolume(val) { explorationAudio.volume = val; combatAudio.volume = val; }
 function playRandomTrack() {
     let next = Math.floor(Math.random() * playlist.length);
     explorationAudio.src = playlist[next];
