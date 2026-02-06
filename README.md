@@ -1,5 +1,5 @@
 - 👋 Hi, I’m @UrSusel a very small developer/programer.
-- 👀 I’m interested in programing stuff.
+- 👀 I’m interested in medieval games, especially rpg ones.
 - 📫 How to reach me: Disocrd: UrSusel
 
 <!---
