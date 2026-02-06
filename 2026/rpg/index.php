@@ -14,7 +14,7 @@
             height: 100vh; 
             cursor: url('assets/ui/Cursor_01.png') 20 18, auto;
         }
-        button, .tile, .class-card, .tab-btn, .item-slot, input, a, .pointer-cursor {
+        button, .tile, .class-card, .tab-btn, .item-slot, input, a, .pointer-cursor, .world-item {
             cursor: url('assets/ui/Cursor_02.png') 20 18, pointer !important;
         }
         #game-layout { display: flex; height: 100vh; }
@@ -54,19 +54,17 @@
             background-repeat: no-repeat; background-position: center bottom; background-size: contain;
             image-rendering: pixelated; position: absolute; z-index: 1000; 
             pointer-events: none; 
-            /* Usunięcie transition stąd, bo robimy to dynamicznie w JS */
             filter: drop-shadow(0px 5px 5px rgba(0,0,0,0.5));
         }
         .player.enemy {
-            pointer-events: auto !important; 
-            cursor: url('assets/ui/Cursor_02.png') 15 15, crosshair !important;
+            pointer-events: auto !important; cursor: url('assets/ui/Cursor_02.png') 15 15, crosshair !important;
         }
         .player.enemy:hover {
             transform: scaleX(-1) scale(1.1);
             filter: drop-shadow(0 0 10px red) hue-rotate(150deg) brightness(0.8);
         }
 
-        /* --- UI --- */
+        /* --- UI PANEL --- */
         #right-panel { width: 350px; background: #1e1e1e; border-left: 1px solid #333; display: flex; flex-direction: column; z-index: 200; }
         .tabs { display: flex; background: #252525; border-bottom: 1px solid #333; }
         .tab-btn { background: transparent; color: #888; border: none; padding: 20px; cursor: pointer; flex: 1; font-weight: bold; }
@@ -78,7 +76,6 @@
         .bar-fill { height: 100%; width: 50%; transition: width 0.5s; }
         .hp-bar { background: #d32f2f; } .en-bar { background: #2196f3; } .xp-bar { background: #00e676; }
         
-        /* EKWIPUNEK */
         .item-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
         .item-slot { 
             background: #252525; border: 1px solid #444; border-radius: 5px; 
@@ -90,11 +87,47 @@
         
         /* Modale */
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 999; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; }
-        #combat-screen { display: none; justify-content: center; align-items: center; } 
         .combat-btn { padding: 12px 30px; background: #c62828; color: white; border: none; font-size: 16px; margin: 10px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        
         #start-screen { display: flex; z-index: 2000; background: #000; }
         .class-card { padding: 20px; border: 2px solid #444; border-radius: 10px; cursor: pointer; text-align: center; width: 120px; transition: 0.3s; }
         .class-card:hover { border-color: #f44336; background: #222; transform: translateY(-5px); }
+        
+        /* Lista Światów */
+        .world-item { background: #333; border: 1px solid #555; padding: 15px; margin: 5px; width: 300px; text-align: center; border-radius: 5px; transition: 0.2s; }
+        .world-item:hover { background: #444; border-color: #00e676; }
+
+        /* Przycisk zmiany świata */
+        #world-btn {
+            position: absolute; top: 10px; right: 20px; 
+            padding: 10px 20px; background: #00e676; color: #000; 
+            font-weight: bold; border: none; border-radius: 5px; cursor: pointer;
+            z-index: 200; display: none; box-shadow: 0 0 10px rgba(0,230,118,0.5);
+        }
+        #world-btn:hover { background: #00c853; }
+
+        /* Przycisk zamknięcia (czerwony X, jak w Windows XP) */
+        .modal-panel { position: relative; }
+        .close-x {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(#ff5c5c, #d32f2f);
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #fff;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 0 rgba(0,0,0,0.4), inset 0 -2px 0 rgba(0,0,0,0.12);
+            line-height: 0;
+            font-size: 16px;
+        }
+        .close-x:hover { filter: brightness(0.9); transform: translateY(-1px); }
     </style>
 </head>
 <body>
@@ -106,6 +139,12 @@
 
 <div id="game-layout">
     <div id="left-panel">
+        <div style="position:absolute; top:10px; left:10px; color:#aaa; font-size:12px; z-index:100;">
+            ŚWIAT: <span id="world-info" style="color:white; font-weight:bold;">...</span>
+        </div>
+
+        <button id="world-btn" style="display:none;" onclick="showWorldSelection()">Wybierz świat 🌐</button>
+
         <div id="map"></div>
     </div>
 
@@ -125,22 +164,18 @@
         <div id="tab-stats" class="tab-content active">
             <h2 id="class-name" style="margin:0;">Postać</h2>
             <div style="font-size:12px; color:#888; margin-bottom:20px;">Poziom <span id="lvl">1</span></div>
-
             <div>Zdrowie: <span id="hp">100 / 100</span></div>
             <div class="bar-container"><div class="bar-fill hp-bar" id="hp-fill"></div></div>
-
             <div style="margin-top:15px;">Energia: <span id="energy">10 / 10</span></div>
             <div class="bar-container"><div class="bar-fill en-bar" id="en-fill"></div></div>
             <div style="text-align:right; font-size:11px; color:#666;">Kroki: <span id="steps-info">0/10</span></div>
-
             <div style="margin-top:15px;">XP: <span id="xp-text">0 / 100</span></div>
             <div class="bar-container"><div class="bar-fill xp-bar" id="xp-fill"></div></div>
         </div>
 
         <div id="tab-inventory" class="tab-content">
             <h3>Plecak</h3>
-            <div id="inventory-grid" class="item-grid">
-                </div>
+            <div id="inventory-grid" class="item-grid"></div>
         </div>
         
         <div id="tab-logs" class="tab-content">
@@ -151,7 +186,6 @@
 
 <div id="combat-screen" class="modal">
     <h2 style="color:#e53935; margin-bottom:10px;">⚔️ WALKA TAKTYCZNA</h2>
-    
     <div style="display:flex; justify-content:space-between; width:550px; margin-bottom:10px;">
         <div style="text-align:left;">
             <div style="color:#4caf50;">TY (<span id="combat-hp">100</span> HP)</div>
@@ -162,13 +196,11 @@
             <div class="bar-container" style="width:200px;"><div class="bar-fill hp-bar" style="width:100%; background:#f44336;"></div></div>
         </div>
     </div>
-
     <div style="margin-top:20px; display:flex; gap:10px; justify-content: center;">
         <button class="combat-btn" style="background:#4caf50;" onclick="handleCombatDefend()">🛡️ Obrona (1AP)</button>
         <button class="combat-btn" style="background:#2196f3;" onclick="useItem(7)">🧪 Mikstura (2AP)</button>
         <button class="combat-btn" style="background:#ff9800;" onclick="useItem(8)">🩹 Bandaż (2AP)</button>
     </div>
-    
     <p id="combat-log" style="color:#bbb; margin-top:15px; font-style:italic; height:20px;">Oczekiwanie...</p>
 </div>
 
@@ -177,6 +209,14 @@
     <button class="combat-btn" onclick="respawnPlayer()">Odrodzenie</button>
 </div>
 
+<div id="world-selection" class="modal" style="display:none;">
+    <div class="modal-panel" style="background:#1b1b1b; padding:20px; border-radius:8px; width:400px; max-height:70vh; overflow:auto; color:#fff;">
+        <button class="close-x" onclick="document.getElementById('world-selection').style.display='none'">✖</button>
+
+        <h2 style="color:#00e676; margin-top:0;">Wybierz świat</h2>
+        <div id="world-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;"></div>
+    </div>
+</div>
 <div id="class-selection" class="modal">
     <h1>Wybierz Klasę</h1>
     <div style="display:flex; gap:20px;">
