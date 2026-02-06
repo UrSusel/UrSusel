@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Feb 06, 2026 at 07:08 PM
+-- Generation Time: Feb 06, 2026 at 04:41 PM
 -- Wersja serwera: 10.4.32-MariaDB
 -- Wersja PHP: 8.0.30
 
@@ -51,17 +51,15 @@ CREATE TABLE `characters` (
   `in_combat` tinyint(1) DEFAULT 0,
   `enemy_hp` int(11) DEFAULT 0,
   `enemy_max_hp` int(11) DEFAULT 0,
-  `combat_state` text DEFAULT NULL,
-  `last_seen` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `combat_state` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `characters`
 --
 
-INSERT INTO `characters` (`id`, `user_id`, `name`, `class_id`, `hp`, `max_hp`, `energy`, `max_energy`, `base_attack`, `base_defense`, `stat_points`, `skill_points`, `pos_x`, `pos_y`, `world_id`, `tutorial_completed`, `xp`, `max_xp`, `level`, `steps_buffer`, `in_combat`, `enemy_hp`, `enemy_max_hp`, `combat_state`, `last_seen`) VALUES
-(1, 1, 'Bohater', 1, 100, 100, 10, 10, 1, 0, 0, 0, 4, 17, 8, 1, 79, 120, 2, 0, 0, 0, 40, NULL, '2026-02-06 17:50:37'),
-(3, 4, 'Nowa postać', 1, 160, 160, 8, 8, 1, 0, 0, 0, 23, 33, 8, 1, 105, 120, 2, 0, 0, 0, 40, NULL, '2026-02-06 18:07:48');
+INSERT INTO `characters` (`id`, `user_id`, `name`, `class_id`, `hp`, `max_hp`, `energy`, `max_energy`, `base_attack`, `base_defense`, `stat_points`, `skill_points`, `pos_x`, `pos_y`, `world_id`, `tutorial_completed`, `xp`, `max_xp`, `level`, `steps_buffer`, `in_combat`, `enemy_hp`, `enemy_max_hp`, `combat_state`) VALUES
+(1, 1, 'Bohater', 1, 100, 100, 10, 10, 1, 0, 0, 0, 4, 17, 8, 1, 79, 120, 2, 0, 0, 0, 40, NULL);
 
 -- --------------------------------------------------------
 
@@ -120,15 +118,7 @@ INSERT INTO `inventory` (`id`, `character_id`, `item_id`, `quantity`, `is_equipp
 (3, 1, 1, 1, 1),
 (4, 1, 5, 1, 1),
 (9, 1, 7, 3, 0),
-(10, 1, 8, 3, 0),
-(11, 2, 1, 1, 1),
-(12, 2, 5, 1, 1),
-(13, 2, 7, 3, 0),
-(14, 2, 8, 3, 0),
-(15, 3, 1, 1, 1),
-(16, 3, 5, 1, 1),
-(17, 3, 7, 3, 0),
-(18, 3, 8, 3, 0);
+(10, 1, 8, 3, 0);
 
 -- --------------------------------------------------------
 
@@ -13477,13 +13467,7 @@ CREATE TABLE `saved_positions` (
 INSERT INTO `saved_positions` (`character_id`, `world_id`, `pos_x`, `pos_y`) VALUES
 (1, 1, 1, 2),
 (1, 8, 4, 17),
-(1, 9, 5, 34),
-(2, 1, 1, 3),
-(2, 8, 15, 17),
-(2, 9, 0, 0),
-(3, 1, 0, 5),
-(3, 8, 23, 33),
-(3, 9, 0, 0);
+(1, 9, 5, 34);
 
 -- --------------------------------------------------------
 
@@ -13529,8 +13513,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `username`, `password`, `created_at`) VALUES
-(1, 'Tester', 'admin', '2026-02-06 14:59:04'),
-(4, 'Susel', '$2y$10$JM4ryNeT0Y4ZALzY35JynudHrSHSGp.5fCwbwGTdHe4AqBHv9KER6', '2026-02-06 15:59:56');
+(1, 'Tester', 'admin', '2026-02-06 14:59:04');
 
 -- --------------------------------------------------------
 
@@ -13644,7 +13627,7 @@ ALTER TABLE `worlds`
 -- AUTO_INCREMENT for table `characters`
 --
 ALTER TABLE `characters`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `character_skills`
@@ -13662,7 +13645,7 @@ ALTER TABLE `classes`
 -- AUTO_INCREMENT for table `inventory`
 --
 ALTER TABLE `inventory`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `items`
@@ -13686,7 +13669,7 @@ ALTER TABLE `skills`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `worlds`
